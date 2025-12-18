@@ -259,9 +259,9 @@ BSD License
 
 ## Changelog
 
-### 1.0.0 (2025-12-18)
+### 1.0.1 (2025-12-18)
 - Added GCP Cloud Storage support
 - Unified interface for all three providers
 
-### 0.1.0 (2025-10-20)
+### 1.0.0 (2025-10-20)
 - Initial release with S3 and Azure support

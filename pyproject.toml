@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "os-py-lib-cloud"
-version = "1.0.0"
+version = "1.0.1"
 description = "Unified AWS S3, Azure Blob Storage, and GCP Cloud Storage client for cloud file uploads"
 readme = "README.md"
 requires-python = ">=3.8"
