@@ -1,19 +1,18 @@
 # OS.py Cloud Storage Library
 
-A unified Python library for AWS S3 and Azure Blob Storage operations with built-in retry logic, error handling, and CDN verification.
+A unified Python library for AWS S3, Azure Blob Storage, and GCP Cloud Storage operations with built-in retry logic, error handling, and CDN verification.
 
 **Author:** Oleg Smirnov
 **Repository:** https://github.com/BestianCode/os.py.lib.cloud
 
 ## Features
 
-- **AWS S3 Support**: Upload files to S3 with automatic retry logic and public URL generation
-- **Azure Blob Storage Support**: Upload to Azure with CDN verification and container management
-- **Unified Interface**: Consistent API for both storage providers
-- **Automatic Retries**: Built-in exponential backoff for resilient uploads
+- **AWS S3 Support**: Upload files to S3 with automatic retry logic
+- **Azure Blob Storage Support**: Upload to Azure with CDN verification
+- **GCP Cloud Storage Support**: Upload to GCP using service account JSON
+- **Unified Interface**: Consistent API for all storage providers
+- **Automatic Retries**: Exponential backoff for resilient uploads
 - **Environment-based Configuration**: Easy setup via environment variables
-- **CDN Integration**: Automatic CDN verification for Azure uploads
-- **Path Management**: Smart path handling for different container types ($web vs. regular containers)
 
 ## Installation
 
@@ -52,37 +51,36 @@ export AWS_S3_BUCKET="your-bucket-name"
 
 ### Azure Blob Storage
 
-Set the following environment variables:
-
 ```bash
 export AZURE_STORAGE_CONNECTION_STRING="your_connection_string"
 export AZURE_CONTAINER_NAME="your-container-name"
 ```
 
+### GCP Cloud Storage
+
+```bash
+export GCP_CREDENTIALS_FILE="/path/to/service-account.json"
+export GCP_BUCKET_NAME="your-bucket-name"
+export GCP_PROJECT_ID="your-project-id"  # optional
+```
+
 ## Usage
 
-### Basic Example
+### Basic S3 Example
 
 ```python
-from os_cloud_storage import os_s3, os_azure
+from os_cloud_storage import os_s3
 from pathlib import Path
 
-# Initialize S3
-file_backend_url = "https://your-cdn.com"
-s3_initialized = os_s3.initialize_s3(file_backend_url)
+s3_initialized = os_s3.initialize_s3()
 
 if s3_initialized:
-    # Upload a file
     success, public_url, s3_url = os_s3.upload_to_s3(
         Path("/path/to/file.mp4"),
-        s3_key="videos/my-video.mp4",
-        max_retries=3
+        s3_key="videos/my-video.mp4"
     )
-
     if success:
-        print(f"File uploaded successfully!")
-        print(f"Public URL: {public_url}")
-        print(f"S3 URL: {s3_url}")
+        print(f"Uploaded: {public_url}")
 ```
 
 ### Azure Blob Storage Example
@@ -91,48 +89,54 @@ if s3_initialized:
 from os_cloud_storage import os_azure
 from pathlib import Path
 
-# Initialize Azure
-file_backend_url = "https://your-cdn.com"
-azure_initialized = os_azure.initialize_azure(file_backend_url)
+azure_initialized = os_azure.initialize_azure()
 
 if azure_initialized:
-    # Upload a file
     success, public_url, blob_url = os_azure.upload_to_azure(
         Path("/path/to/file.mp4"),
-        blob_name="videos/my-video.mp4",
-        max_retries=3
+        blob_name="videos/my-video.mp4"
     )
-
     if success:
-        print(f"File uploaded successfully!")
-        print(f"Public URL: {public_url}")
-        print(f"Blob URL: {blob_url}")
+        print(f"Uploaded: {public_url}")
 ```
 
-### Using in Your Application
+### GCP Cloud Storage Example
 
 ```python
-from os_cloud_storage import os_s3, os_azure
+from os_cloud_storage import os_gcp
 from pathlib import Path
 
-# Initialize both providers
-file_backend_url = "https://media.example.com"
-s3_initialized = os_s3.initialize_s3(file_backend_url)
-azure_initialized = os_azure.initialize_azure(file_backend_url)
+gcp_initialized = os_gcp.initialize_gcp()
 
-# Get clients for direct access if needed
-s3_client = os_s3.get_s3_client()
-blob_service_client = os_azure.get_blob_service_client()
-container_client = os_azure.get_container_client()
+if gcp_initialized:
+    success, public_url, gcs_url = os_gcp.upload_to_gcp(
+        Path("/path/to/file.mp4"),
+        blob_name="videos/my-video.mp4"
+    )
+    if success:
+        print(f"Uploaded: {public_url}")
+```
 
-# Upload function with fallback
+### Multi-Provider Example
+
+```python
+from os_cloud_storage import os_s3, os_azure, os_gcp
+from pathlib import Path
+
+# Initialize providers
+os_s3.initialize_s3()
+os_azure.initialize_azure()
+os_gcp.initialize_gcp()
+
+# Upload with fallback
 def upload_file(file_path):
-    if s3_client:
+    if os_s3.is_initialized():
         return os_s3.upload_to_s3(Path(file_path))
-    elif blob_service_client:
+    elif os_azure.is_initialized():
         return os_azure.upload_to_azure(Path(file_path))
-    else:
-        return False, None, None
+    elif os_gcp.is_initialized():
+        return os_gcp.upload_to_gcp(Path(file_path))
+    return False, None, None
 ```
 
 ## API Reference
@@ -185,13 +189,39 @@ def upload_file(file_path):
 - **`get_container_name() -> str`**
   - Get the configured container name
 
+### GCP Module (`os_gcp`)
+
+#### Functions
+
+- **`initialize_gcp(file_backend_url: str = None) -> bool`**
+  - Initialize GCP client using service account JSON
+  - Returns: True if successful, False otherwise
+
+- **`upload_to_gcp(local_file_path: Path, blob_name: str = None, max_retries: int = 3, file_backend_url: str = None) -> Tuple[bool, str, str]`**
+  - Upload a file to GCP Cloud Storage
+  - Returns: (success, public_url, gcs_url)
+
+- **`is_initialized() -> bool`**
+  - Check if GCP is initialized
+
+- **`get_storage_client()`**
+  - Get the GCP storage client
+
+- **`get_bucket()`**
+  - Get the bucket object
+
+- **`get_bucket_name() -> str`**
+  - Get the configured bucket name
+
+- **`get_project_id() -> str`**
+  - Get the configured project ID
+
 ## Features in Detail
 
 ### Retry Logic
 
-Both S3 and Azure uploads include automatic retry logic with exponential backoff:
+All providers include automatic retry with exponential backoff:
 - Default: 3 retry attempts
-- Exponential backoff: base_delay * (2 ^ attempt_number)
 - Configurable via `max_retries` parameter
 
 ### CDN Verification (Azure)
@@ -203,48 +233,35 @@ Azure uploads include automatic CDN verification:
 
 ### Path Management
 
-- **Azure $web containers**: Uses flat paths (no date prefixes)
-- **Regular containers**: Automatically adds date-based paths (YYYY/MM/DD)
+- **Azure $web containers**: Uses flat paths
+- **Azure/GCP regular containers**: Adds date-based paths (YYYY/MM/DD)
 - **S3**: Preserves your specified key structure
 
 ### Error Handling
 
-All functions return a tuple with:
-1. `success` (bool): Whether the operation succeeded
-2. `public_url` (str): The public-facing URL (using file_backend_url)
-3. `cloud_url` (str): The direct cloud storage URL
+All functions return: `(success: bool, public_url: str, cloud_url: str)`
 
 ## Requirements
 
 - Python >= 3.8
 - boto3 >= 1.26.0
-- botocore >= 1.29.0
 - azure-storage-blob >= 12.19.0
-- azure-core >= 1.29.0
+- google-cloud-storage >= 2.10.0
 - requests >= 2.28.0
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues and questions, please use the [GitHub Issues](https://github.com/BestianCode/os.py.lib.cloud/issues) page.
+BSD License
 
 ## Author
 
-**Oleg Smirnov**
-GitHub: [@BestianCode](https://github.com/BestianCode)
+**Oleg Smirnov** - [@BestianCode](https://github.com/BestianCode)
 
 ## Changelog
 
+### 1.0.0 (2025-12-18)
+- Added GCP Cloud Storage support
+- Unified interface for all three providers
+
 ### 0.1.0 (2025-10-20)
-- Initial release
-- AWS S3 support with retry logic
-- Azure Blob Storage support with CDN verification
-- Unified interface for both providers
-- Environment-based configuration
+- Initial release with S3 and Azure support
