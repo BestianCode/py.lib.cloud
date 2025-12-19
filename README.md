@@ -259,6 +259,9 @@ BSD License
 
 ## Changelog
 
+### 1.0.2 (2025-12-19)
+- Fixed GCP Cloud Storage file prefix
+
 ### 1.0.1 (2025-12-18)
 - Added GCP Cloud Storage support
 - Unified interface for all three providers

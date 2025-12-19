@@ -105,8 +105,7 @@ def upload_to_gcp(
         return False, None, None
 
     if not blob_name:
-        date_prefix = datetime.now().strftime("%Y/%m/%d")
-        blob_name = f"{date_prefix}/{local_file_path.name}"
+        blob_name = local_file_path.name
 
     for attempt in range(1, max_retries + 1):
         try:
